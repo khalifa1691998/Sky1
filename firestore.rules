@@ -1,0 +1,229 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ================= Helpers =================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function myRole() {
+      return get(/databases/$(database)/documents/userRoles/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() {
+      return isSignedIn() && myRole() == 'ADMIN';
+    }
+    function isStaffOrAdmin() {
+      return isSignedIn() && (myRole() == 'ADMIN' || myRole() == 'STAFF');
+    }
+
+    // NEW: reads the global staffPermissions map from settings/global and
+    // checks a single tab/area key, defaulting to false if the map or the
+    // key doesn't exist yet (so this can never accidentally open access).
+    // This mirrors exactly what app.js's isTabAllowedForCurrentUser() does
+    // on the client (app.js:88), so the server now agrees with the UI.
+    function staffPermission(area) {
+      let s = get(/databases/$(database)/documents/settings/global).data;
+      return s.staffPermissions != null && s.staffPermissions.get(area, false) == true;
+    }
+
+    // NEW: true for ADMIN always, or for STAFF only if the admin has
+    // granted them that specific tab via Settings > staffPermissions.
+    function canView(area) {
+      return isSignedIn() && (myRole() == 'ADMIN' || (myRole() == 'STAFF' && staffPermission(area)));
+    }
+
+    // ================= Roles =================
+    match /userRoles/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isStaffOrAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ================= Open-to-all-signed-in-users data =================
+    // Unchanged: COLLECTOR needs these three for the Collections tab
+    // (confirmed against renderCollections(), app.js:3728 - it only reads
+    // clients/contracts/installments, nothing else).
+    match /clients/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+    // FEATURE: سجل ملاحظات/متابعة العميل - أي مستخدم موقّع (بما فيهم
+    // المحصّل) يقدر يضيف ملاحظة متابعة، لأن المتابعة اليومية شغل المحصلين
+    // الأساسي. التعديل للمشرف/الموظف بس، والحذف للمشرف فقط.
+    match /clientFollowUps/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.clientId is string && request.resource.data.clientId.size() > 0
+                    && request.resource.data.note is string && request.resource.data.note.size() > 0 && request.resource.data.note.size() < 2000;
+      allow update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+    // FEATURE: طلبات العملاء (منتجات مش متوفرة) - أي مستخدم موقّع يقدر يسجل
+    // طلب أو يحدّث حالته (لسه بيدور/لقاه/اتحول لعقد/اتلغى)، عشان التسجيل
+    // يبقى سريع وسهل لمين ما كان بيكلم العميل وقت الطلب.
+    match /customerRequests/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.productDescription is string && request.resource.data.productDescription.size() > 0 && request.resource.data.productDescription.size() < 1000;
+      allow update: if isSignedIn();
+      allow delete: if isStaffOrAdmin();
+    }
+    // FEATURE: قوالب المصروفات الشهرية الثابتة - نفس مستوى صلاحية المصروفات
+    // العادية بالظبط، لأنها فعليًا نفس نوع البيانات المالية.
+    match /recurringExpenses/{docId} {
+      allow read: if canView('expenses');
+      allow create, update: if canView('expenses');
+      allow delete: if isAdmin();
+    }
+    // FEATURE: طلبات موافقة السحوبات الكبيرة - أدمن بس (طبيعة الميزة نفسها
+    // إنها رقابة على قرارات الأدمن، فمنطقي تبقى مقصورة على الأدمن).
+    match /pendingWithdrawals/{docId} {
+      allow read, create, update: if isAdmin();
+      allow delete: if false;
+    }
+    // FEATURE: تسوية الخزينة اليومية - سجل تاريخي، أي مستخدم موقّع (staff
+    // بيعملها كمان مش الأدمن بس) يقدر يسجل، بس مفيش تعديل أو حذف بعد الحفظ
+    // عشان تفضل مصداقيتها كسجل تاريخي زي auditLogs بالظبط.
+    match /cashReconciliations/{docId} {
+      allow read: if isStaffOrAdmin();
+      allow create: if isSignedIn()
+                    && request.resource.data.expectedAmount is number
+                    && request.resource.data.actualAmount is number;
+      allow update, delete: if false;
+    }
+    // FEATURE: قائمة سوداء لأشخاص لسه مش عملاء - أي مستخدم موقّع يقدر
+    // يضيف/يقرا (عشان يتفحص وقت التسجيل)، الحذف للمشرف/الموظف بس.
+    match /blacklist/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.name is string && request.resource.data.name.size() > 0;
+      allow update: if isStaffOrAdmin();
+      allow delete: if isStaffOrAdmin();
+    }
+    match /contracts/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+    match /installments/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+    match /collectorCustodies/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.amount is number
+                    && request.resource.data.amount > 0;
+      // FIX (تقرير الفحص - بند ٤.٤): كانت أي حساب STAFF (حتى بدون صلاحية
+      // تبويب الخزينة الممنوحة له من الإعدادات) يقدر يعدّل/يحذف عهدة تحصيل
+      // مباشرة، رغم إن اعتماد العهدة فعلياً عملية خزينة. دلوقتي بنشترط
+      // canView('treasury') بالظبط زي treasuryTransactions، فيتفق الاثنين.
+      allow update, delete: if canView('treasury');
+    }
+
+    // ================= Staff-or-admin data (permission-gated tabs) =================
+    match /inventory/{docId} {
+      allow read: if isStaffOrAdmin();
+      allow create, update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // CHANGED (C6): delete split out to admin-only, matching every other
+    // deletable collection instead of being bundled into "write".
+    match /brands/{docId} {
+      allow read: if isStaffOrAdmin();
+      allow create, update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+    match /suppliers/{docId} {
+      allow read: if isStaffOrAdmin();
+      allow create, update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /productCategories/{docId} {
+      allow read: if isStaffOrAdmin();
+      allow create, update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+    match /products/{docId} {
+      allow read: if isStaffOrAdmin();
+      allow create, update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+    match /productStockMovements/{docId} {
+      allow read: if isStaffOrAdmin();
+      allow create: if isStaffOrAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // CHANGED (C4): expenses and treasuryTransactions now respect the
+    // admin-controlled staffPermissions.expenses / .treasury toggles
+    // instead of being open to every STAFF account unconditionally.
+    match /expenses/{docId} {
+      allow read: if canView('expenses');
+      allow create, update: if canView('expenses');
+      allow delete: if isAdmin();
+    }
+    match /treasuryTransactions/{docId} {
+      allow read: if canView('treasury');
+      allow create, update: if canView('treasury');
+      allow delete: if isAdmin();
+    }
+
+    // CHANGED (C4 + note): filled the missing delete rule for
+    // supplierTransactions (previously absent entirely, meaning nobody -
+    // not even Admin - could delete one; now explicit and admin-only).
+    match /supplierTransactions/{docId} {
+      allow read: if isStaffOrAdmin();
+      allow create, update: if isStaffOrAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // CHANGED (C4): investors and investorSnapshots now respect
+    // staffPermissions.investors for reads. Writes remain admin-only,
+    // unchanged from before - this was already correctly locked down.
+    match /investors/{docId} {
+      allow read: if canView('investors');
+      allow write: if isAdmin();
+    }
+    match /investorSnapshots/{docId} {
+      allow read: if canView('investors');
+      allow write: if isAdmin();
+    }
+
+    // ================= Audit Logs =================
+    match /auditLogs/{docId} {
+      allow read: if isStaffOrAdmin();
+
+      // FIX (C5): كانت أي حسابات موقّعة تقدر تكتب "user" بأي اسم تحبه (حتى
+      // اسم حد تاني)، فالسجل مكانش موثوق. دلوقتي بنجبر إن قيمة "user"
+      // تطابق بالظبط الاسم الحقيقي المخزّن على حساب المستخدم نفسه في
+      // userRoles/{uid} (اللي بيتحدّث تلقائياً مع كل تسجيل دخول عبر
+      // ensureUserRoleDoc في app.js)، مش أي قيمة تانية يبعتها المتصفح.
+      allow create: if isSignedIn()
+                    && request.resource.data.user == get(/databases/$(database)/documents/userRoles/$(request.auth.uid)).data.name
+                    && request.resource.data.actionType is string && request.resource.data.actionType.size() > 0 && request.resource.data.actionType.size() < 500
+                    && request.resource.data.details is string && request.resource.data.details.size() < 500;
+
+      allow update, delete: if false;
+    }
+
+    // ================= Default deny =================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

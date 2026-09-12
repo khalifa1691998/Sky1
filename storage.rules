@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// FIX: ملف قواعد أمان Firebase Storage ده كان غير موجود خالص في المشروع.
+// من غيره، أي محاولة رفع صورة كانت هترفض تلقائياً بقاعدة Firebase
+// الافتراضية (رفض الكل)، أو تُقبل من أي حد بدون تسجيل دخول لو المشروع
+// كان لسه في "وضع الاختبار" (Test Mode) - الاتنين وضع مش آمن.
+//
+// ⚠️ خطوة مطلوبة منك: الملف ده لازم يتنسخ يدوياً في:
+// Firebase Console -> مشروعك (sky-erp-85273) -> Storage -> Rules -> استبدل
+// المحتوى بده -> Publish. مش هيتفعّل تلقائياً لمجرد إنه موجود في مجلد الموقع.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // نفس مبدأ قواعد Firestore بالظبط: أي حد مسجّل دخول (STAFF/ADMIN/COLLECTOR)
+    // يقدر يقرأ ويرفع صور العملاء/الضامنين (بطاقات وعقود)، لأن ده جزء أساسي
+    // من شغل التسجيل اليومي. حد أقصى 10 ميجابايت للصورة الواحدة (أي صورة
+    // بجودة كاميرا هاتف عادية أصغر من كده بكتير، ده مجرد سقف أمان).
+    match /clients/{allPaths=**} {
+      allow read, write: if request.auth != null
+                          && request.resource.size < 10 * 1024 * 1024
+                          && request.resource.contentType.matches('image/.*');
+    }
+    match /guarantors/{allPaths=**} {
+      allow read, write: if request.auth != null
+                          && request.resource.size < 10 * 1024 * 1024
+                          && request.resource.contentType.matches('image/.*');
+    }
+
+    // رفض أي مسار تاني غير مذكور صراحة فوق (نفس مبدأ "Default Deny" المتبع
+    // في firestore.rules).
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
