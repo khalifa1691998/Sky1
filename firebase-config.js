@@ -5,12 +5,12 @@
 
 // إعدادات مشروع Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyB2xQ2cHsl_XgV_n6cWtqJZ4jQePQAJRdA",
-  authDomain: "sky-erp-85273.firebaseapp.com",
-  projectId: "sky-erp-85273",
-  storageBucket: "sky-erp-85273.firebasestorage.app",
-  messagingSenderId: "961206274449",
-  appId: "1:961206274449:web:95e94522f11188b6eb3230"
+  apiKey: "AIzaSyBJFklOjaZrJ3oTYOaUpvG_TdT7oJMgG2k",
+  authDomain: "sky-erp-a2e55.firebaseapp.com",
+  projectId: "sky-erp-a2e55",
+  storageBucket: "ky-erp-a2e55.firebasestorage.app",
+  messagingSenderId: "4030815598",
+  appId: "1:4030815598:web:77b78076e02bbe7802f57f"
 };
 
 // نطاق داخلي وهمي لتحويل "اسم المستخدم" الذي يكتبه المستخدم في شاشة الدخول
