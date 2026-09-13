@@ -4,13 +4,18 @@
 // الآن لازم يمر عبر حساب حقيقي في Firebase Authentication (Email/Password).
 
 // إعدادات مشروع Firebase
+// تم التحويل للمشروع الجديد (sky-erp-a2e55) بناءً على طلب صاحب النظام -
+// المشروع القديم (sky-erp-85273) لم يتم حذفه ولا تعديله، هو فقط لم يعد
+// مستخدماً من هذا الموقع. قاعدة بيانات المشروع الجديد فارغة تماماً من الصفر
+// (لا عملاء، لا مستخدمين، لا شيء) - راجع خطوات الإعداد الأولي المطلوبة.
 const firebaseConfig = {
-  apiKey: "AIzaSyBJFklOjaZrJ3oTYOaUpvG_TdT7oJMgG2k",
+  apiKey: "AIzaSyBJFkl0jaZrJ3oTYOaUpvG_TdT7oJMgG2k",
   authDomain: "sky-erp-a2e55.firebaseapp.com",
   projectId: "sky-erp-a2e55",
-  storageBucket: "ky-erp-a2e55.firebasestorage.app",
+  storageBucket: "sky-erp-a2e55.firebasestorage.app",
   messagingSenderId: "4030815598",
-  appId: "1:4030815598:web:77b78076e02bbe7802f57f"
+  appId: "1:4030815598:web:77b78076e02bbe7802f57f",
+  measurementId: "G-QKJNEBME87"
 };
 
 // نطاق داخلي وهمي لتحويل "اسم المستخدم" الذي يكتبه المستخدم في شاشة الدخول

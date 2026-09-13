@@ -6,7 +6,7 @@ rules_version = '2';
 // كان لسه في "وضع الاختبار" (Test Mode) - الاتنين وضع مش آمن.
 //
 // ⚠️ خطوة مطلوبة منك: الملف ده لازم يتنسخ يدوياً في:
-// Firebase Console -> مشروعك (sky-erp-85273) -> Storage -> Rules -> استبدل
+// Firebase Console -> مشروعك (sky-erp-a2e55) -> Storage -> Rules -> استبدل
 // المحتوى بده -> Publish. مش هيتفعّل تلقائياً لمجرد إنه موجود في مجلد الموقع.
 service firebase.storage {
   match /b/{bucket}/o {
