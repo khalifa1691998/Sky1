@@ -9,7 +9,7 @@
 // مستخدماً من هذا الموقع. قاعدة بيانات المشروع الجديد فارغة تماماً من الصفر
 // (لا عملاء، لا مستخدمين، لا شيء) - راجع خطوات الإعداد الأولي المطلوبة.
 const firebaseConfig = {
-  apiKey: "AIzaSyBJFkl0jaZrJ3oTYOaUpvG_TdT7oJMgG2k",
+  apiKey: "AIzaSyBJFklOjaZrJ3oTYOaUpvG_TdT7oJMgG2k",
   authDomain: "sky-erp-a2e55.firebaseapp.com",
   projectId: "sky-erp-a2e55",
   storageBucket: "sky-erp-a2e55.firebasestorage.app",
