@@ -1171,7 +1171,7 @@ window.exportExcelBackup = function() {
     const sup = db.suppliers.find(s => s.id === p.defaultSupplierId);
     return {
       'الصنف': cat ? cat.name : '', 'اسم المنتج': p.name, 'الوحدة': p.unit || 'قطعة',
-      'الكمية الحالية': qty, 'الحد الأدنى للتنبيه': p.minQty || 0,
+      'الكمية الحالية': qty,
       'سعر التكلفة': p.costPrice || 0, 'سعر البيع': p.sellingPrice || 0,
       'المورد الافتراضي': sup ? sup.name : '', 'ملاحظات': p.notes || ''
     };
@@ -2121,9 +2121,8 @@ function getSystemNotifications() {
     if (stats.totalCount > 0) notifications.dueSoon = stats;
   }
 
-  // 3. منتجات أوشكت على النفاد (نفس منطق باج "أوشك على النفاد" بالظبط)
-  const lowStockProducts = db.products.filter(p => computeProductQuantity(p.id) <= (p.minQty || 0));
-  if (lowStockProducts.length > 0) notifications.lowStock = { count: lowStockProducts.length, products: lowStockProducts };
+  // FEATURE REMOVAL: تنبيه "منتجات أوشكت على النفاد" اتلغى مع باقي ميزة
+  // الحد الأدنى للتنبيه في الأصناف والمنتجات.
 
   // 4. عهد محصلين معلّقة محتاجة اعتماد
   const pending = db.collectorCustodies.filter(c => c.status === 'pending');
@@ -2152,9 +2151,9 @@ function updateNotificationBell() {
   const btn = document.getElementById('notif-bell-btn');
   if (!dot || !isAdmin()) return;
   const n = getSystemNotifications();
-  const hasAny = n.overdue || n.dueToday || n.dueSoon || n.lowStock || n.pendingCustody || n.backupDue || n.openRequests || n.pendingRecurringExpenses || n.pendingWithdrawalApprovals;
+  const hasAny = n.overdue || n.dueToday || n.dueSoon || n.pendingCustody || n.backupDue || n.openRequests || n.pendingRecurringExpenses || n.pendingWithdrawalApprovals;
   dot.classList.toggle('hidden', !hasAny);
-  const itemCount = [n.overdue, n.dueToday, n.dueSoon, n.lowStock, n.pendingCustody, n.backupDue, n.openRequests, n.pendingRecurringExpenses, n.pendingWithdrawalApprovals].filter(Boolean).length;
+  const itemCount = [n.overdue, n.dueToday, n.dueSoon, n.pendingCustody, n.backupDue, n.openRequests, n.pendingRecurringExpenses, n.pendingWithdrawalApprovals].filter(Boolean).length;
   if (btn) btn.setAttribute('aria-label', hasAny ? `لديك ${itemCount} تنبيهات تحتاج للمراجعة` : 'لا توجد تنبيهات جديدة');
 
   // لو الجرس مفتوح وقت التحديث، نحدّث محتواه فوراً بدل ما يفضل قديم
@@ -2230,13 +2229,6 @@ function renderNotificationsPanel(panel) {
           <button onclick="sendUpcomingRemindersInBulk()" class="flex-1 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold">إرسال تذكير استباقي</button>
           <button onclick="switchTab('collections'); toggleNotificationsPanel();" class="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">عرض التفاصيل</button>
         </div>
-      </div>`);
-  }
-  if (n.lowStock) {
-    items.push(`
-      <div class="p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/50 rounded-xl cursor-pointer" onclick="switchTab('products'); toggleNotificationsPanel();">
-        <p class="text-xs font-bold text-orange-700 dark:text-orange-400">منتجات أوشكت على النفاد</p>
-        <p class="text-sm text-orange-600 dark:text-orange-400 mt-0.5">${n.lowStock.count} صنف محتاج إعادة توريد — اضغط للعرض</p>
       </div>`);
   }
   if (n.pendingCustody) {
@@ -2694,12 +2686,10 @@ function renderInventory() {
   const statusFilterEl = document.getElementById('inventory-filter-status');
   const branchFilterEl = document.getElementById('inventory-filter-branch');
   const supplierFilterEl = document.getElementById('inventory-filter-supplier');
-  const lowStockOnlyEl = document.getElementById('inventory-filter-lowstock');
 
   const statusFilter = statusFilterEl ? statusFilterEl.value : '';
   const branchFilter = branchFilterEl ? branchFilterEl.value : '';
   const supplierFilter = supplierFilterEl ? supplierFilterEl.value : '';
-  const lowStockOnly = lowStockOnlyEl ? lowStockOnlyEl.checked : false;
 
   tbody.innerHTML = '';
 
@@ -2736,7 +2726,6 @@ function renderInventory() {
         sellingPrice: dev.sellingPrice,
         supplier: dev.supplier,
         branch,
-        minQty: dev.minQty || 3,
         devices: []
       };
     }
@@ -2757,21 +2746,6 @@ function renderInventory() {
     groupedList = groupedList.filter(g => g.supplier === supplierFilter);
   }
 
-  let lowStockGroupsCount = 0;
-  groupedList.forEach(g => {
-    const avail = g.devices.filter(d => d.status === 'available').length;
-    if (avail > 0 && avail <= (g.minQty || 3)) lowStockGroupsCount++;
-  });
-  const lowStockEl = document.getElementById('inv-lowstock-count');
-  if (lowStockEl) lowStockEl.textContent = lowStockGroupsCount;
-
-  if (lowStockOnly) {
-    groupedList = groupedList.filter(g => {
-      const avail = g.devices.filter(d => d.status === 'available').length;
-      return avail > 0 && avail <= (g.minQty || 3);
-    });
-  }
-
   renderBestSellers();
 
   if (groupedList.length === 0) {
@@ -2786,8 +2760,6 @@ function renderInventory() {
     const totalQty = group.devices.length;
     const availDevices = group.devices.filter(d => d.status === 'available');
     const availQty = availDevices.length;
-    const minQty = group.minQty || 3;
-    const isLowStock = availQty > 0 && availQty <= minQty;
     const isOutOfStock = availQty === 0 && totalQty > 0;
 
     // أقدم قطعة متاحة بالمخزن لحساب "عمر المخزون" (كام يوم واقفة من غير ما تتباع)
@@ -2822,9 +2794,7 @@ function renderInventory() {
 
     const stockBadge = isOutOfStock
       ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-rose-100 text-rose-700 text-xs font-bold">نفذت الكمية</span>`
-      : isLowStock
-        ? `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-100 text-amber-700 text-xs font-bold" title="الحد الأدنى: ${minQty}"><i class="ph ph-warning"></i> ${availQty} متاح / ${totalQty} كلي (منخفض)</span>`
-        : `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-800 text-xs font-bold">${availQty} متاح / ${totalQty} كلي</span>`;
+      : `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 text-slate-800 text-xs font-bold">${availQty} متاح / ${totalQty} كلي</span>`;
 
     const costCell = userIsAdmin
       ? `${group.costPrice.toLocaleString()} ج.م`
@@ -3019,7 +2989,6 @@ window.editDeviceGroup = function(brand, name) {
   document.getElementById('edit-inv-cost').value = sampleDev.costPrice;
   document.getElementById('edit-inv-price').value = sampleDev.sellingPrice;
   document.getElementById('edit-inv-supplier').value = sampleDev.supplier || '';
-  document.getElementById('edit-inv-minqty').value = sampleDev.minQty || 3;
   openModal('edit-inventory-modal');
 };
 
@@ -3031,20 +3000,18 @@ window.saveInventoryEdit = async function() {
   const newCost = parseFloat(document.getElementById('edit-inv-cost').value) || 0;
   const newPrice = parseFloat(document.getElementById('edit-inv-price').value) || 0;
   const newSupplier = document.getElementById('edit-inv-supplier').value.trim();
-  const newMinQty = parseInt(document.getElementById('edit-inv-minqty').value) || 3;
 
   db.inventory.forEach(d => {
     if (d.brand === brand && d.name === name) {
       d.costPrice = newCost;
       d.sellingPrice = newPrice;
       d.supplier = newSupplier;
-      d.minQty = newMinQty;
     }
   });
 
-  logAction('تعديل مخزون', `تعديل أسعار صنف ${brand} ${name}: تكلفة ${newCost} ج.م، بيع ${newPrice} ج.م، حد أدنى ${newMinQty}`);
+  logAction('تعديل مخزون', `تعديل أسعار صنف ${brand} ${name}: تكلفة ${newCost} ج.م، بيع ${newPrice} ج.م`);
   
-  await syncWithAppsScript('updateDeviceGroup', { brand, name, costPrice: newCost, sellingPrice: newPrice, supplier: newSupplier, minQty: newMinQty });
+  await syncWithAppsScript('updateDeviceGroup', { brand, name, costPrice: newCost, sellingPrice: newPrice, supplier: newSupplier });
   
   closeModal('edit-inventory-modal');
   renderInventory();
@@ -4033,9 +4000,7 @@ function renderProducts() {
   renderProductCategoryChips();
 
   const searchInput = document.getElementById('product-search-input');
-  const lowStockInput = document.getElementById('product-filter-lowstock');
   const searchVal = (searchInput ? searchInput.value : '').toLowerCase();
-  const lowStockOnly = lowStockInput ? lowStockInput.checked : false;
   const tbody = document.getElementById('products-table-body');
   // FIX: حماية عامة - لو العنصر مش موجود لأي سبب (نسخة قديمة/تعارض تحميل)،
   // نوقف بأمان بدل ما نكسر الشاشة كلها بخطأ 'innerHTML of null'.
@@ -4052,20 +4017,15 @@ function renderProducts() {
   });
 
   // ملخصات علوية
+  // FEATURE REMOVAL: ميزة "الحد الأدنى للتنبيه" اتلغت بالكامل من الأصناف
+  // والمنتجات بناءً على طلب صاحب النظام - مفيش أي حساب أو عرض ليها هنا تاني.
   const summaryCategories = document.getElementById('product-summary-categories');
   const summaryProducts = document.getElementById('product-summary-products');
-  const summaryLowStock = document.getElementById('product-summary-lowstock');
   const summaryValue = document.getElementById('product-summary-value');
   if (summaryCategories) summaryCategories.textContent = db.productCategories.length;
   if (summaryProducts) summaryProducts.textContent = db.products.length;
-  const lowStockProducts = db.products.filter(p => computeProductQuantity(p.id) <= (p.minQty || 0));
-  if (summaryLowStock) summaryLowStock.textContent = lowStockProducts.length;
   const totalStockValue = db.products.reduce((sum, p) => sum + (computeProductQuantity(p.id) * safeNum(p.costPrice)), 0);
   if (summaryValue) summaryValue.textContent = totalStockValue.toLocaleString();
-
-  if (lowStockOnly) {
-    list = list.filter(p => computeProductQuantity(p.id) <= (p.minQty || 0));
-  }
 
   if (list.length === 0) {
     if (emptyState) emptyState.classList.remove('hidden');
@@ -4080,7 +4040,6 @@ function renderProducts() {
   pageItems.forEach(p => {
     const cat = db.productCategories.find(c => c.id === p.categoryId);
     const qty = computeProductQuantity(p.id);
-    const isLow = qty <= (p.minQty || 0);
     const sup = db.suppliers.find(s => s.id === p.defaultSupplierId);
     const isExpanded = expandedProductId === p.id;
 
@@ -4094,11 +4053,9 @@ function renderProducts() {
         </div>
       </td>
       <td class="p-4 text-center">
-        <span class="font-black text-sm ${isLow ? 'text-rose-600' : 'text-slate-700'}">${qty.toLocaleString()}</span>
+        <span class="font-black text-sm text-slate-700">${qty.toLocaleString()}</span>
         <span class="text-xs text-slate-400"> ${escapeHTML(p.unit || 'قطعة')}</span>
-        ${isLow ? `<div><span class="badge badge-danger mt-1 inline-block">أوشك على النفاد</span></div>` : ''}
       </td>
-      <td class="p-4 text-center text-slate-500 text-xs">${(p.minQty || 0).toLocaleString()}</td>
       <td class="p-4 text-slate-600 text-xs">${(p.costPrice || 0).toLocaleString()} ج.م</td>
       <td class="p-4 text-slate-600 text-xs">${(p.sellingPrice || 0).toLocaleString()} ج.م</td>
       <td class="p-4 text-slate-600 text-xs">${sup ? escapeHTML(sup.name) : '-'}</td>
@@ -4155,8 +4112,7 @@ function renderProducts() {
 
 const productSearchInputEl = document.getElementById('product-search-input');
 if (productSearchInputEl) productSearchInputEl.addEventListener('input', debouncedSearch('products', renderProducts));
-const productLowStockInputEl = document.getElementById('product-filter-lowstock');
-if (productLowStockInputEl) productLowStockInputEl.addEventListener('change', renderProducts);
+// FEATURE REMOVAL: تم إلغاء فلتر "أوشك على النفاد" بالكامل من الأصناف والمنتجات.
 
 // ----- إدارة الأصناف (Categories CRUD) -----
 window.openAddProductCategoryModal = function() {
@@ -4253,7 +4209,6 @@ window.editProduct = function(productId) {
   document.getElementById('product-brand-select').value = p.brand || '';
   
   document.getElementById('product-unit').value = p.unit || 'قطعة';
-  document.getElementById('product-min-qty').value = p.minQty || 0;
   document.getElementById('product-cost-price').value = p.costPrice || 0;
   document.getElementById('product-selling-price').value = p.sellingPrice || 0;
   document.getElementById('product-default-supplier').value = p.defaultSupplierId || '';
@@ -4315,7 +4270,9 @@ document.getElementById('add-product-form').addEventListener('submit', async (e)
   const name = document.getElementById('product-name').value.trim();
   const categoryId = document.getElementById('product-category-select').value;
   const unit = document.getElementById('product-unit').value.trim() || 'قطعة';
-  const minQty = parseFloat(document.getElementById('product-min-qty').value) || 0;
+  // FEATURE REMOVAL: ميزة "الحد الأدنى للتنبيه" اتلغت بالكامل - بنسيب القيمة
+  // صفر افتراضياً (مش مستخدمة في أي عرض أو تنبيه تاني في النظام).
+  const minQty = 0;
   const costPrice = parseFloat(document.getElementById('product-cost-price').value) || 0;
   const sellingPrice = parseFloat(document.getElementById('product-selling-price').value) || 0;
   const defaultSupplierId = document.getElementById('product-default-supplier').value;
@@ -8098,7 +8055,9 @@ document.getElementById('add-device-form').addEventListener('submit', async (e) 
   const condition = document.getElementById('device-condition').value || 'new';
   const warrantyMonths = parseInt(document.getElementById('device-warranty').value) || 0;
   const branch = document.getElementById('device-branch').value.trim() || 'الفرع الرئيسي';
-  const minQty = parseInt(document.getElementById('device-min-qty').value) || 3;
+  // FEATURE REMOVAL: ميزة "الحد الأدنى للتنبيه" اتلغت بالكامل من المخزون
+  // والأجهزة - بنسيب قيمة افتراضية غير مستخدمة في أي عرض أو تنبيه.
+  const minQty = 0;
   const notes = document.getElementById('device-notes').value.trim();
 
   const modelObj = db.products.find(p => p.id === modelId);
@@ -9263,8 +9222,8 @@ document.getElementById('inventory-search').addEventListener('input', debouncedS
   const el = document.getElementById(id);
   if (el) el.addEventListener('change', renderInventory);
 });
-const lowStockFilterEl = document.getElementById('inventory-filter-lowstock');
-if (lowStockFilterEl) lowStockFilterEl.addEventListener('change', renderInventory);
+// FEATURE REMOVAL: تم حذف مستمع فلتر "أوشك على النفاد" في المخزون لأن
+// العنصر نفسه اتشال من الواجهة مع باقي ميزة الحد الأدنى.
 document.getElementById('contract-search-input').addEventListener('input', debouncedSearch('contracts', renderContracts));
 document.getElementById('collection-search-input').addEventListener('input', debouncedSearch(null, renderCollections));
 document.getElementById('collection-filter-month').addEventListener('change', renderCollections);

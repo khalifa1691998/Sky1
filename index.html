@@ -757,7 +757,7 @@
         </div>
 
         <!-- Inventory Stats -->
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4">
           <div class="bg-white p-2.5 sm:p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-2 sm:gap-3">
             <div class="p-2 sm:p-3 rounded-lg bg-teal-50 text-teal-600 shrink-0"><i class="ph ph-stack text-sm sm:text-base"></i></div>
             <div class="min-w-0">
@@ -794,13 +794,6 @@
             </div>
           </div>
           <div class="bg-white p-2.5 sm:p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-2 sm:gap-3">
-            <div class="p-2 sm:p-3 rounded-lg bg-amber-50 text-amber-600 shrink-0"><i class="ph ph-warning text-sm sm:text-base"></i></div>
-            <div class="min-w-0">
-              <p class="text-[10px] sm:text-xs text-slate-500 truncate">أصناف تحت الحد الأدنى</p>
-              <p class="font-bold text-slate-800 text-sm sm:text-base" id="inv-lowstock-count">0</p>
-            </div>
-          </div>
-          <div class="bg-white p-2.5 sm:p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-2 sm:gap-3">
             <div class="p-2 sm:p-3 rounded-lg bg-teal-50 text-teal-600 shrink-0"><i class="ph ph-wallet text-sm sm:text-base"></i></div>
             <div class="min-w-0">
               <p class="text-[10px] sm:text-xs text-slate-500 truncate">قيمة المخزون (تكلفة)</p>
@@ -813,6 +806,8 @@
         <div id="inv-best-sellers" class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hidden"></div>
 
         <!-- Filters -->
+        <!-- FEATURE REMOVAL: كارت وفلتر "أصناف تحت الحد الأدنى" اتشالوا بناءً
+             على طلب إلغاء ميزة الحد الأدنى بالكامل من المخزون والأجهزة. -->
         <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-col gap-3">
           <div class="flex flex-col sm:flex-row gap-3 w-full flex-wrap">
             <input type="text" id="inventory-search" placeholder="ابحث باسم الجهاز..." class="form-input sm:w-56">
@@ -828,10 +823,6 @@
             <select id="inventory-filter-supplier" class="form-input sm:w-40">
               <option value="">كل الموردين</option>
             </select>
-            <label class="flex items-center gap-1.5 text-xs text-slate-600 font-semibold px-2">
-              <input type="checkbox" id="inventory-filter-lowstock" class="rounded">
-              أصناف منخفضة فقط
-            </label>
           </div>
           <div class="text-xs text-slate-400">
             ملاحظة: يتم تجميع الأجهزة المتطابقة (نفس الصنف/السعر/الفرع) لعرض كمياتها وتفاصيلها. اضغط على أي سيريال لعرض تفاصيله وتنفيذ إجراءات عليه.
@@ -941,7 +932,9 @@
         </div>
 
         <!-- Summary cards -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <!-- FEATURE REMOVAL: كارت "أوشك على النفاد" اتشال بناءً على طلب
+             إلغاء ميزة الحد الأدنى بالكامل من الأصناف والمنتجات. -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
             <p class="text-xs text-slate-400 font-semibold">عدد الأصناف</p>
             <p class="text-xl font-black text-slate-800 mt-1" id="product-summary-categories">0</p>
@@ -949,10 +942,6 @@
           <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
             <p class="text-xs text-slate-400 font-semibold">عدد المنتجات</p>
             <p class="text-xl font-black text-slate-800 mt-1" id="product-summary-products">0</p>
-          </div>
-          <div class="bg-rose-50 rounded-2xl p-4 border border-rose-100 shadow-sm">
-            <p class="text-xs text-rose-500 font-semibold">أوشك على النفاد</p>
-            <p class="text-xl font-black text-rose-700 mt-1" id="product-summary-lowstock">0</p>
           </div>
           <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 shadow-sm">
             <p class="text-xs text-indigo-500 font-semibold">قيمة المخزون (تكلفة)</p>
@@ -976,10 +965,6 @@
             </span>
             <input type="text" id="product-search-input" placeholder="ابحث باسم المنتج..." class="form-input pr-10">
           </div>
-          <label class="flex items-center gap-2 text-sm text-slate-600 font-semibold">
-            <input type="checkbox" id="product-filter-lowstock" class="rounded">
-            عرض الأصناف الأقل من الحد الأدنى فقط
-          </label>
         </div>
 
         <!-- Products Table -->
@@ -990,9 +975,9 @@
                 <tr class="bg-slate-50/75 border-b border-slate-100 text-slate-600 text-sm font-semibold">
                   <th class="p-4">المنتج</th>
                   <th class="p-4 text-center">الكمية الحالية</th>
-                  <th class="p-4 text-center">الحد الأدنى</th>
                   <th class="p-4">سعر التكلفة</th>
                   <th class="p-4">سعر البيع</th>
+
                   <th class="p-4">المورد الافتراضي</th>
                   <th class="p-4 text-center">الإجراءات</th>
                 </tr>
@@ -2598,17 +2583,11 @@
             <input type="number" id="product-selling-price" min="0" step="0.01" class="form-input" placeholder="0.00">
           </div>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="form-label">الحد الأدنى للتنبيه</label>
-            <input type="number" id="product-min-qty" min="0" class="form-input" placeholder="0">
-          </div>
-          <div>
-            <label class="form-label">المورد الافتراضي (اختياري)</label>
-            <select id="product-default-supplier" class="form-input">
-              <option value="">بدون مورد افتراضي</option>
-            </select>
-          </div>
+        <div>
+          <label class="form-label">المورد الافتراضي (اختياري)</label>
+          <select id="product-default-supplier" class="form-input">
+            <option value="">بدون مورد افتراضي</option>
+          </select>
         </div>
         <div>
           <label class="form-label">ملاحظات (اختياري)</label>
@@ -2800,10 +2779,6 @@
           <div>
             <label class="form-label">مدة الضمان (بالشهور)</label>
             <input type="number" id="device-warranty" min="0" class="form-input" placeholder="مثال: 12">
-          </div>
-          <div>
-            <label class="form-label">الحد الأدنى للتنبيه</label>
-            <input type="number" id="device-min-qty" min="1" value="3" class="form-input" placeholder="افتراضي: 3">
           </div>
         </div>
         <div>
@@ -3779,10 +3754,6 @@ Samsung, A05, SN-1002, 4000, 4800, الفرع الرئيسي"></textarea>
         <div>
           <label class="form-label">التاجر / المورد</label>
           <input type="text" id="edit-inv-supplier" class="form-input" placeholder="اسم المورد">
-        </div>
-        <div>
-          <label class="form-label">الحد الأدنى للتنبيه (نقص المخزون)</label>
-          <input type="number" id="edit-inv-minqty" min="1" class="form-input" placeholder="افتراضي: 3">
         </div>
         <div class="flex justify-end gap-2 pt-3">
           <button type="button" onclick="closeModal('edit-inventory-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm">إلغاء</button>
